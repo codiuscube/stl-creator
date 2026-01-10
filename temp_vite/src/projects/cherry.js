@@ -4,16 +4,16 @@ export const cherryProject = {
     id: 'cherry',
     name: 'Cherry Ornament',
 
-    // Realistic cherry ornament dimensions (in cm)
+    // Cherry ornament dimensions (in cm) - fits Bambu Lab A1 (256x256x256mm)
     // Real cherries are ~2-3cm diameter, ornament ~6-8cm total height
     defaultSettings: {
-        cherryRadius: 1.5,
-        cherrySpacing: 2,
-        stemLength: 2.5,
-        stemThickness: 0.15,
-        capRadius: 0.5,
-        capHeight: 0.4,
-        loopSize: 0.4
+        cherryRadius: 0.85,
+        cherrySpacing: 1.5,
+        stemLength: 1.875,
+        stemThickness: 0.11249999999999999,
+        capRadius: 0.375,
+        capHeight: 0.30000000000000004,
+        loopSize: 0.30000000000000004
     },
 
     defaultColors: {
@@ -24,19 +24,25 @@ export const cherryProject = {
     },
 
     controls: [
-        { group: 'Cherries', items: [
-            { key: 'cherryRadius', label: 'Cherry Size', min: 0.8, max: 2.5, step: 0.1 },
-            { key: 'cherrySpacing', label: 'Cherry Spacing', min: 1, max: 4, step: 0.1 }
-        ]},
-        { group: 'Stems', items: [
-            { key: 'stemLength', label: 'Stem Length', min: 1.5, max: 5, step: 0.1 },
-            { key: 'stemThickness', label: 'Stem Thickness', min: 0.08, max: 0.3, step: 0.02 }
-        ]},
-        { group: 'Ornament Cap', items: [
-            { key: 'capRadius', label: 'Cap Size', min: 0.3, max: 1, step: 0.05 },
-            { key: 'capHeight', label: 'Cap Height', min: 0.2, max: 0.8, step: 0.05 },
-            { key: 'loopSize', label: 'Hanging Loop', min: 0.2, max: 0.8, step: 0.05 }
-        ]}
+        {
+            group: 'Cherries', items: [
+                { key: 'cherryRadius', label: 'Cherry Size', min: 0.8, max: 2.5, step: 0.1 },
+                { key: 'cherrySpacing', label: 'Cherry Spacing', min: 1, max: 4, step: 0.1 }
+            ]
+        },
+        {
+            group: 'Stems', items: [
+                { key: 'stemLength', label: 'Stem Length', min: 1.5, max: 5, step: 0.1 },
+                { key: 'stemThickness', label: 'Stem Thickness', min: 0.08, max: 0.3, step: 0.02 }
+            ]
+        },
+        {
+            group: 'Ornament Cap', items: [
+                { key: 'capRadius', label: 'Cap Size', min: 0.3, max: 1, step: 0.05 },
+                { key: 'capHeight', label: 'Cap Height', min: 0.2, max: 0.8, step: 0.05 },
+                { key: 'loopSize', label: 'Hanging Loop', min: 0.2, max: 0.8, step: 0.05 }
+            ]
+        }
     ],
 
     createGeometry: (settings, partColors) => {
@@ -189,6 +195,7 @@ export const cherryProject = {
     },
 
     calculateVolume: (settings) => {
+        // All values in cm, result in cm³
         // Two cherry spheres
         const cherryVolume = 2 * (4 / 3) * Math.PI * Math.pow(settings.cherryRadius, 3);
 
@@ -201,7 +208,7 @@ export const cherryProject = {
         // Loop
         const loopVolume = 2 * Math.PI * Math.PI * Math.pow(settings.loopSize * 0.2, 2) * settings.loopSize;
 
-        return (cherryVolume + stemVolume + capVolume + loopVolume) / 1000;
+        return cherryVolume + stemVolume + capVolume + loopVolume;
     },
 
     exportFilename: 'new-braunfels-cherry-ornament.stl'

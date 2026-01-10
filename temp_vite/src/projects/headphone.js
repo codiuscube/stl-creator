@@ -4,14 +4,14 @@ export const headphoneProject = {
     id: 'headphone',
     name: 'Headphone Stand',
 
-    // Realistic headphone stand dimensions (in cm)
-    // Total height ~28cm, base ~15cm diameter, fits over-ear headphones
+    // Headphone stand dimensions (in cm) - fits Bambu Lab A1 (256x256x256mm)
+    // Total height ~25cm, base ~12cm diameter, fits over-ear headphones
     defaultSettings: {
-        height: 26,
-        baseRadius: 7.5,
+        height: 22,
+        baseRadius: 6,
         baseHeight: 1.2,
         stemRadius: 1.5,
-        holderWidth: 16
+        holderWidth: 14
     },
 
     defaultColors: {
@@ -21,17 +21,18 @@ export const headphoneProject = {
         stoppers: '#334155'
     },
 
+    // Max values constrained to Bambu Lab A1 build volume (256mm)
     controls: [
         { group: 'Dimensions', items: [
-            { key: 'height', label: 'Total Height', min: 15, max: 40, step: 0.5 },
+            { key: 'height', label: 'Total Height', min: 10, max: 24, step: 0.5 },
             { key: 'stemRadius', label: 'Stem Thickness', min: 0.5, max: 3, step: 0.1 }
         ]},
         { group: 'Base', items: [
             { key: 'baseRadius', label: 'Base Radius', min: 4, max: 12, step: 0.5 },
-            { key: 'baseHeight', label: 'Base Height', min: 0.5, max: 5, step: 0.1 }
+            { key: 'baseHeight', label: 'Base Height', min: 0.5, max: 3, step: 0.1 }
         ]},
         { group: 'Holder', items: [
-            { key: 'holderWidth', label: 'Holder Width', min: 8, max: 20, step: 0.5 }
+            { key: 'holderWidth', label: 'Holder Width', min: 8, max: 24, step: 0.5 }
         ]}
     ],
 

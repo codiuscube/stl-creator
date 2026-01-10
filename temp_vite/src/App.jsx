@@ -165,10 +165,21 @@ const Icons = {
             <path d="m13.5 4.5 2 2"></path>
             <path d="m4.5 13.5 2 2"></path>
         </svg>
+    ),
+    Copy: (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+        </svg>
+    ),
+    Check: (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
     )
 };
 
-const Header = ({ onExport, currentProject, onProjectChange }) => (
+const Header = ({ onExport, currentProject, onProjectChange, isOutOfBounds }) => (
     <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm z-20 relative">
         <div className="flex items-center gap-3">
             <div className="text-blue-600 bg-blue-50 p-2 rounded-lg">
@@ -186,9 +197,18 @@ const Header = ({ onExport, currentProject, onProjectChange }) => (
                 ))}
             </select>
         </div>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 font-medium transition-all shadow-sm hover:shadow-md cursor-pointer active:scale-95" onClick={onExport}>
+        <button
+            className={`px-4 py-2.5 rounded-lg flex items-center gap-2 font-medium transition-all shadow-sm ${
+                isOutOfBounds
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-md cursor-pointer active:scale-95'
+            }`}
+            onClick={isOutOfBounds ? undefined : onExport}
+            disabled={isOutOfBounds}
+            title={isOutOfBounds ? 'Model exceeds build plate - reduce size to export' : 'Export STL file'}
+        >
             <Icons.Download className="w-4 h-4" />
-            Export STL
+            {isOutOfBounds ? 'Too Large' : 'Export STL'}
         </button>
     </header>
 );
@@ -368,7 +388,7 @@ const ReferenceObjectsControl = ({ visibleObjects, onToggle, scale, onScaleChang
     </div>
 );
 
-const Viewer = ({ project, settings, partColors, modelRef, onPartClick, visibleReferenceObjects = [], referenceScale = 1 }) => {
+const Viewer = ({ project, settings, partColors, modelRef, onPartClick, visibleReferenceObjects = [], referenceScale = 1, onOutOfBoundsChange }) => {
     const mountRef = useRef(null);
     const sceneRef = useRef(null);
     const cameraRef = useRef(null);
@@ -418,23 +438,29 @@ const Viewer = ({ project, settings, partColors, modelRef, onPartClick, visibleR
         fillLight.position.set(-10, 10, -10);
         scene.add(fillLight);
 
+        // Bambu Lab A1 build plate: 256 x 256 mm, max height: 256mm
+        const buildPlateSizeMM = 256;
+        const buildPlateUnits = buildPlateSizeMM / 10; // Convert to scene units (cm)
+
         const plane = new THREE.Mesh(
-            new THREE.PlaneGeometry(200, 200),
+            new THREE.PlaneGeometry(buildPlateUnits, buildPlateUnits),
             new THREE.ShadowMaterial({ opacity: 0.1 })
         );
         plane.rotation.x = -Math.PI / 2;
         plane.receiveShadow = true;
         scene.add(plane);
 
-        const grid = new THREE.GridHelper(100, 50, 0xcbd5e1, 0xe2e8f0);
+        // Build plate grid
+        const grid = new THREE.GridHelper(buildPlateUnits, buildPlateSizeMM / 10, 0xcbd5e1, 0xe2e8f0);
         grid.position.y = 0.01;
         scene.add(grid);
 
         // Permanent vertical mm ruler (1 unit = 1cm = 10mm)
+        // Bambu Lab A1 max height: 256mm
         const rulerGroup = new THREE.Group();
         rulerGroup.position.set(-12, 0, 0); // Position to the left of the model
 
-        const rulerHeightMM = 400; // 400mm
+        const rulerHeightMM = 256; // Bambu Lab A1 max height
         const rulerHeightUnits = rulerHeightMM / 10; // Convert to scene units (cm)
         const rulerMaterial = new THREE.MeshBasicMaterial({
             color: 0x64748b,
@@ -492,10 +518,10 @@ const Viewer = ({ project, settings, partColors, modelRef, onPartClick, visibleR
                     opacity: 0.15
                 });
                 const laserLine = new THREE.Mesh(
-                    new THREE.PlaneGeometry(100, 0.03),
+                    new THREE.PlaneGeometry(buildPlateUnits, 0.03),
                     laserLineMaterial
                 );
-                laserLine.position.set(38, y, 0); // Center it across the viewport
+                laserLine.position.set(buildPlateUnits / 2 - 12, y, 0); // Center it across the build plate
                 laserLine.renderOrder = -1; // Render behind other objects
                 scene.add(laserLine);
             }
@@ -570,6 +596,61 @@ const Viewer = ({ project, settings, partColors, modelRef, onPartClick, visibleR
             sceneRef.current.remove(modelRef.current);
         }
         const newModel = project.createGeometry(settings, partColors);
+
+        // Check if model exceeds build plate bounds (256mm = 25.6 units)
+        const buildLimitUnits = 25.6;
+        const halfPlate = buildLimitUnits / 2; // 12.8 units from center
+
+        const box = new THREE.Box3().setFromObject(newModel);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+
+        // Check if model exceeds any dimension
+        const exceedsHeight = size.y > buildLimitUnits;
+        const exceedsWidth = size.x > buildLimitUnits || Math.abs(center.x) + size.x / 2 > halfPlate;
+        const exceedsDepth = size.z > buildLimitUnits || Math.abs(center.z) + size.z / 2 > halfPlate;
+        const isOutOfBounds = exceedsHeight || exceedsWidth || exceedsDepth;
+
+        // Notify parent of bounds state
+        if (onOutOfBoundsChange) {
+            onOutOfBoundsChange(isOutOfBounds);
+        }
+
+        // Apply "Little Mac wireframe" effect if out of bounds
+        if (isOutOfBounds) {
+            // Collect meshes first to avoid modifying during traversal
+            const meshes = [];
+            newModel.traverse((child) => {
+                if (child.isMesh) meshes.push(child);
+            });
+
+            meshes.forEach((mesh) => {
+                // Store original material for reference
+                const originalColor = mesh.material.color.clone();
+
+                // Create wireframe overlay
+                const wireframeMaterial = new THREE.MeshBasicMaterial({
+                    color: originalColor,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.8
+                });
+
+                // Make the solid material very transparent
+                mesh.material.transparent = true;
+                mesh.material.opacity = 0.15;
+                mesh.material.depthWrite = false;
+
+                // Add wireframe mesh as sibling
+                const wireframeMesh = new THREE.Mesh(mesh.geometry, wireframeMaterial);
+                wireframeMesh.position.copy(mesh.position);
+                wireframeMesh.rotation.copy(mesh.rotation);
+                wireframeMesh.scale.copy(mesh.scale);
+                wireframeMesh.name = mesh.name + '_wireframe';
+                newModel.add(wireframeMesh);
+            });
+        }
+
         sceneRef.current.add(newModel);
         modelRef.current = newModel;
     }, [project, settings, partColors]);
@@ -586,8 +667,9 @@ const Viewer = ({ project, settings, partColors, modelRef, onPartClick, visibleR
             if (child.material) child.material.dispose();
         }
 
-        // Add visible reference objects positioned beside the main model
-        let currentX = 12; // Start position to the right of the model
+        // Add visible reference objects positioned outside the build plate
+        // Build plate is 25.6 units (256mm) centered at origin, so edge is at 12.8
+        let currentX = 15; // Start position outside the build plate
 
         visibleReferenceObjects.forEach((objId) => {
             const refObj = REFERENCE_OBJECTS.find(o => o.id === objId);
@@ -623,10 +705,26 @@ const Viewer = ({ project, settings, partColors, modelRef, onPartClick, visibleR
 };
 
 const estimatePrintTime = (volumeCm3) => {
-    const totalMinutes = Math.round((volumeCm3 / 15) * 60);
+    // Bambu A1 estimate: ~40 cm³/hour at typical settings (20% infill, 0.2mm layer)
+    // This accounts for travel, retractions, and cooling
+    const printRateCm3PerHour = 40;
+    const totalMinutes = Math.round((volumeCm3 / printRateCm3PerHour) * 60);
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
+    if (hours === 0) {
+        return `~${minutes}m`;
+    }
     return `~${hours}h ${minutes}m`;
+};
+
+const estimateFilamentCost = (volumeCm3) => {
+    // PLA density: ~1.24 g/cm³
+    // Cost: $50 for 4kg = $12.50/kg = $0.0125/g
+    const plaDensity = 1.24; // g/cm³
+    const costPerGram = 50 / 4000; // $0.0125/g
+    const weightGrams = volumeCm3 * plaDensity;
+    const cost = weightGrams * costPerGram;
+    return { weight: weightGrams, cost };
 };
 
 function ProjectEditor() {
@@ -644,7 +742,14 @@ function ProjectEditor() {
     const [visibleReferenceObjects, setVisibleReferenceObjects] = useState([]);
     const [referenceScale, setReferenceScale] = useState(1);
     const [modelScale, setModelScale] = useState(1);
+    const [isOutOfBounds, setIsOutOfBounds] = useState(false);
+    const [copied, setCopied] = useState(false);
     const modelRef = useRef(null);
+
+    const closePopover = () => {
+        setSelectedPart(null);
+        setPopoverPosition(null);
+    };
 
     // Reset settings when project changes via URL
     useEffect(() => {
@@ -691,18 +796,56 @@ function ProjectEditor() {
         }
     };
 
-    const closePopover = () => {
-        setSelectedPart(null);
-        setPopoverPosition(null);
-    };
-
     // Create scaled settings - multiplies all numeric dimensions by modelScale
     const scaledSettings = Object.fromEntries(
         Object.entries(settings).map(([key, value]) => [key, typeof value === 'number' ? value * modelScale : value])
     );
 
+    // Copy settings function - must be after scaledSettings is defined
+    const copySettingsToClipboard = async () => {
+        console.log('=== COPY BUTTON CLICKED ===');
+        console.log('Base settings:', settings);
+        console.log('Model scale:', modelScale);
+        console.log('Scaled settings:', scaledSettings);
+
+        // Use scaled settings (the actual values being used)
+        const formatted = JSON.stringify(scaledSettings, null, 4)
+            .replace(/"(\w+)":/g, '$1:'); // Remove quotes from keys
+        const codeBlock = `defaultSettings: ${formatted},`;
+
+        console.log('Formatted code block:', codeBlock);
+
+        try {
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                console.log('Using navigator.clipboard.writeText...');
+                await navigator.clipboard.writeText(codeBlock);
+                console.log('Clipboard write successful!');
+            } else {
+                console.log('Clipboard API not available, using fallback...');
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = codeBlock;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                console.log('Fallback copy successful!');
+            }
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            console.error('Copy failed with error:', err);
+            console.log('=== COPY THESE SETTINGS MANUALLY ===\n', codeBlock);
+            alert('Copied to console (check developer tools)');
+        }
+    };
+
     const volume = project.calculateVolume(scaledSettings);
     const printTime = estimatePrintTime(volume);
+    const { weight: filamentWeight, cost: filamentCost } = estimateFilamentCost(volume);
 
     // Export binary STL with per-facet colors (Magics/Materialise format)
     // Uses BGR byte order which is supported by PrusaSlicer, Cura, etc.
@@ -787,13 +930,27 @@ function ProjectEditor() {
 
     return (
         <div className="flex flex-col h-screen font-sans">
-            <Header onExport={handleExport} currentProject={validProjectId} onProjectChange={handleProjectChange} />
+            <Header onExport={handleExport} currentProject={validProjectId} onProjectChange={handleProjectChange} isOutOfBounds={isOutOfBounds} />
             <div className="flex flex-1 overflow-hidden">
                 <aside className="w-96 bg-white border-r border-gray-200 overflow-y-auto z-10 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.05)] flex flex-col">
                     <div className="p-8 pb-4">
-                        <div className="flex items-center gap-2 mb-2 text-gray-900">
-                            <Icons.Settings className="w-5 h-5 text-gray-500" />
-                            <h2 className="text-lg font-bold">Configuration</h2>
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 text-gray-900">
+                                <Icons.Settings className="w-5 h-5 text-gray-500" />
+                                <h2 className="text-lg font-bold">Configuration</h2>
+                            </div>
+                            <button
+                                onClick={copySettingsToClipboard}
+                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                    copied
+                                        ? 'bg-green-100 text-green-700'
+                                        : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                                }`}
+                                title="Copy current settings as code"
+                            >
+                                {copied ? <Icons.Check className="w-3.5 h-3.5" /> : <Icons.Copy className="w-3.5 h-3.5" />}
+                                {copied ? 'Copied!' : 'Copy Settings'}
+                            </button>
                         </div>
                         <p className="text-sm text-gray-500">Customize your {project.name.toLowerCase()}.</p>
                     </div>
@@ -830,11 +987,25 @@ function ProjectEditor() {
                     </div>
                 </aside>
                 <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-200 relative">
-                    <Viewer project={project} settings={scaledSettings} partColors={partColors} modelRef={modelRef} onPartClick={handlePartClick} visibleReferenceObjects={visibleReferenceObjects} referenceScale={referenceScale} />
-                    <div className="absolute bottom-6 left-6 bg-white/80 backdrop-blur-md border border-white/50 p-4 rounded-xl shadow-lg">
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">View Stats</div>
-                        <div className="text-sm font-medium text-gray-700">Volume: {volume.toFixed(1)} cm3</div>
-                        <div className="text-sm font-medium text-gray-700">Print Time: {printTime}</div>
+                    <Viewer project={project} settings={scaledSettings} partColors={partColors} modelRef={modelRef} onPartClick={handlePartClick} visibleReferenceObjects={visibleReferenceObjects} referenceScale={referenceScale} onOutOfBoundsChange={setIsOutOfBounds} />
+                    <div className={`absolute bottom-6 left-6 backdrop-blur-md border p-4 rounded-xl shadow-lg ${isOutOfBounds ? 'bg-red-50/90 border-red-200' : 'bg-white/80 border-white/50'}`}>
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                            {isOutOfBounds ? 'Out of Bounds' : 'View Stats'}
+                        </div>
+                        <div className={`text-sm font-medium ${isOutOfBounds ? 'text-red-600' : 'text-gray-700'}`}>
+                            Volume: {volume.toFixed(1)} cm³
+                        </div>
+                        <div className={`text-sm font-medium ${isOutOfBounds ? 'text-red-600' : 'text-gray-700'}`}>
+                            Filament: {filamentWeight.toFixed(0)}g · ${filamentCost.toFixed(2)}
+                        </div>
+                        <div className={`text-sm font-medium ${isOutOfBounds ? 'text-red-600' : 'text-gray-700'}`}>
+                            Print Time: {isOutOfBounds ? 'N/A' : printTime}
+                        </div>
+                        {isOutOfBounds && (
+                            <div className="mt-2 text-xs text-red-500">
+                                Reduce size to fit 256x256x256mm
+                            </div>
+                        )}
                     </div>
                 </main>
             </div>
@@ -851,10 +1022,16 @@ function ProjectEditor() {
     );
 }
 
+// Wrapper to force remount when project changes
+function ProjectEditorWrapper() {
+    const { projectId } = useParams();
+    return <ProjectEditor key={projectId} />;
+}
+
 function App() {
     return (
         <Routes>
-            <Route path="/:projectId" element={<ProjectEditor />} />
+            <Route path="/:projectId" element={<ProjectEditorWrapper />} />
             <Route path="/" element={<Navigate to="/headphone" replace />} />
         </Routes>
     );
