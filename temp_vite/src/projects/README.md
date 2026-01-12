@@ -2,6 +2,23 @@
 
 This specific repository is optimized for creating generative 3D models for the **Bambu Lab A1** 3D printer. Before starting any new project, you must adhere to the following constraints and requirements to ensure a successful, high-quality print.
 
+---
+
+## 🔗 Available Projects & Routes
+
+The application uses React Router. Each project is accessible via `/:projectId`:
+
+| Project | Route | Description |
+|---------|-------|-------------|
+| Headphone Stand | `/headphone` | Desktop headphone stand |
+| Cherry | `/cherry` | Decorative cherry model |
+| Master Sword Stand | `/master-sword-stand` | Display stand for Master Sword replica |
+| Paper Towel Holder | `/paper-towel-holder` | Under-cabinet paper towel holder (3-piece: 2 brackets + rod) |
+
+The default route (`/`) redirects to `/paper-towel-holder`.
+
+---
+
 ## 🚨 Required Project Constraints
 
 **Printer Manufacturer**: Bambu Lab

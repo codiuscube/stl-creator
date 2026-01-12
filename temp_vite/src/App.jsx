@@ -3,6 +3,7 @@ import { Routes, Route, useParams, useNavigate, Navigate } from 'react-router-do
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PROJECTS, PROJECT_LIST } from './projects';
+import { BooleanControl, SelectControl } from './controls.jsx';
 
 const FILAMENT_COLORS = [
     { name: 'Black', hex: '#1a1a1a' },
@@ -198,11 +199,10 @@ const Header = ({ onExport, currentProject, onProjectChange, isOutOfBounds }) =>
             </select>
         </div>
         <button
-            className={`px-4 py-2.5 rounded-lg flex items-center gap-2 font-medium transition-all shadow-sm ${
-                isOutOfBounds
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-md cursor-pointer active:scale-95'
-            }`}
+            className={`px-4 py-2.5 rounded-lg flex items-center gap-2 font-medium transition-all shadow-sm ${isOutOfBounds
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-md cursor-pointer active:scale-95'
+                }`}
             onClick={isOutOfBounds ? undefined : onExport}
             disabled={isOutOfBounds}
             title={isOutOfBounds ? 'Model exceeds build plate - reduce size to export' : 'Export STL file'}
@@ -220,8 +220,8 @@ const ControlGroup = ({ title, children }) => (
     </div>
 );
 
-const RangeControl = ({ label, value, min, max, step, onChange, unit = "mm" }) => (
-    <div className="group">
+const RangeControl = ({ label, value, min, max, step, onChange, unit = "mm", disabled }) => (
+    <div className={`group ${disabled ? 'opacity-40' : ''}`}>
         <div className="flex justify-between mb-2">
             <label className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">{label}</label>
             <span className="text-sm text-gray-500 font-mono bg-gray-100 px-2 rounded">{value}{unit}</span>
@@ -233,7 +233,8 @@ const RangeControl = ({ label, value, min, max, step, onChange, unit = "mm" }) =
             step={step}
             value={value}
             onChange={(e) => onChange(parseFloat(e.target.value))}
-            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600 hover:accent-blue-700 transition-all"
+            disabled={disabled}
+            className={`w-full h-1.5 bg-gray-200 rounded-lg appearance-none accent-blue-600 hover:accent-blue-700 transition-all ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
         />
     </div>
 );
@@ -316,11 +317,10 @@ const ModelScaleControl = ({ scale, onScaleChange }) => (
                     <button
                         key={opt.value}
                         onClick={() => onScaleChange(opt.value)}
-                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
-                            scale === opt.value
-                                ? 'bg-white text-blue-600 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700'
-                        }`}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${scale === opt.value
+                            ? 'bg-white text-blue-600 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                            }`}
                     >
                         {opt.label}
                     </button>
@@ -344,11 +344,10 @@ const ReferenceObjectsControl = ({ visibleObjects, onToggle, scale, onScaleChang
                     <button
                         key={opt.value}
                         onClick={() => onScaleChange(opt.value)}
-                        className={`px-2 py-1 text-xs font-medium rounded-md transition-all ${
-                            scale === opt.value
-                                ? 'bg-white text-blue-600 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700'
-                        }`}
+                        className={`px-2 py-1 text-xs font-medium rounded-md transition-all ${scale === opt.value
+                            ? 'bg-white text-blue-600 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                            }`}
                     >
                         {opt.label}
                     </button>
@@ -360,11 +359,10 @@ const ReferenceObjectsControl = ({ visibleObjects, onToggle, scale, onScaleChang
                 <button
                     key={obj.id}
                     onClick={() => onToggle(obj.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-all ${
-                        visibleObjects.includes(obj.id)
-                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                            : 'border-gray-200 hover:border-gray-300 text-gray-600 hover:bg-gray-50'
-                    }`}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-all ${visibleObjects.includes(obj.id)
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-600 hover:bg-gray-50'
+                        }`}
                 >
                     <div
                         className="w-3 h-3 rounded-full flex-shrink-0"
@@ -941,11 +939,10 @@ function ProjectEditor() {
                             </div>
                             <button
                                 onClick={copySettingsToClipboard}
-                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                    copied
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
-                                }`}
+                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${copied
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                                    }`}
                                 title="Copy current settings as code"
                             >
                                 {copied ? <Icons.Check className="w-3.5 h-3.5" /> : <Icons.Copy className="w-3.5 h-3.5" />}
@@ -958,18 +955,49 @@ function ProjectEditor() {
                         <ModelScaleControl scale={modelScale} onScaleChange={setModelScale} />
                         {project.controls.map(group => (
                             <ControlGroup key={group.group} title={group.group}>
-                                {group.items.map(control => (
-                                    <RangeControl
-                                        key={control.key}
-                                        label={control.label}
-                                        value={parseFloat((settings[control.key] * modelScale * 10).toFixed(1))}
-                                        min={parseFloat((control.min * modelScale * 10).toFixed(1))}
-                                        max={parseFloat((control.max * modelScale * 10).toFixed(1))}
-                                        step={parseFloat((control.step * modelScale * 10).toFixed(2))}
-                                        unit={control.unit ?? 'mm'}
-                                        onChange={(v) => updateSetting(control.key, v / modelScale / 10)}
-                                    />
-                                ))}
+                                {group.items.map(control => {
+                                    // Check if control should be disabled based on disabledWhen condition
+                                    const isDisabled = control.disabledWhen
+                                        ? Object.entries(control.disabledWhen).some(([key, val]) => settings[key] === val)
+                                        : false;
+
+                                    if (control.type === 'boolean') {
+                                        return (
+                                            <BooleanControl
+                                                key={control.key}
+                                                label={control.label}
+                                                value={settings[control.key]}
+                                                onChange={(v) => updateSetting(control.key, v)}
+                                                disabled={isDisabled}
+                                            />
+                                        );
+                                    }
+                                    if (control.type === 'select') {
+                                        return (
+                                            <SelectControl
+                                                key={control.key}
+                                                label={control.label}
+                                                value={settings[control.key]}
+                                                options={control.options}
+                                                onChange={(v) => updateSetting(control.key, v)}
+                                                disabled={isDisabled}
+                                            />
+                                        );
+                                    }
+                                    return (
+                                        <RangeControl
+                                            key={control.key}
+                                            label={control.label}
+                                            value={parseFloat((settings[control.key] * modelScale * 10).toFixed(1))}
+                                            min={parseFloat((control.min * modelScale * 10).toFixed(1))}
+                                            max={parseFloat((control.max * modelScale * 10).toFixed(1))}
+                                            step={parseFloat((control.step * modelScale * 10).toFixed(2))}
+                                            unit={control.unit ?? 'mm'}
+                                            onChange={(v) => updateSetting(control.key, v / modelScale / 10)}
+                                            disabled={isDisabled}
+                                        />
+                                    );
+                                })}
                             </ControlGroup>
                         ))}
                         <ControlGroup title="Appearance">
@@ -1032,7 +1060,7 @@ function App() {
     return (
         <Routes>
             <Route path="/:projectId" element={<ProjectEditorWrapper />} />
-            <Route path="/" element={<Navigate to="/headphone" replace />} />
+            <Route path="/" element={<Navigate to="/paper-towel-holder" replace />} />
         </Routes>
     );
 }
